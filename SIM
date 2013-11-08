@@ -1,0 +1,115 @@
+#!/usr/bin/python
+
+import sys
+#import matplotlib.pyplot as plt
+
+def sis1(s, S, demand_data, start_index):
+	# Initialize arrays
+	l = [S]
+	o = []
+	
+	l_plus = []
+	l_minus = []
+
+	i = 0
+
+	index = start_index
+	first_run = True
+	
+	# Run simulation through all values of demand
+	while index != start_index or first_run:
+		i += 1
+
+		# Are we ordering more?
+		if l[i-1] < s:
+			o.append(S - l[i-1])
+		else:
+			o.append(0)
+
+		# Get the demand
+		d = int(demand_data[index])
+
+		l_prime = l[i-1] + o[i-1]
+		
+		l.append(l_prime - d)
+
+		# Does the supply go negative?
+		if l_prime >= d:
+			l_plus.append(l_prime - 0.5*d)
+			l_minus.append(0)
+		else:
+			l_plus.append(l_prime**2 / (2.0*d))
+			l_minus.append((d - l_prime)**2 / (2.0*d))
+
+		first_run = False
+		index = (index + 1) % len(demand_data)
+
+
+	n = i
+	o.append(S - l[n])
+	l[n] = S
+	return l,o,l_plus,l_minus
+
+
+def main():
+	if len(sys.argv) < 4:
+		print "Usage: ./SIM R s demand.dat | ./SIM C s demand.dat index"
+
+	# Read in command line args
+	experiment = sys.argv[1]
+	s = int(sys.argv[2])
+	filename = sys.argv[3]
+	start_index = int(sys.argv[4]) if experiment == 'C' else 0
+
+	# Inventory limit
+	S = 80
+
+	# Costs
+	c_item = 8000
+	c_setup = 1000
+	c_hold = 25
+	c_short = 700
+
+	# Read in data	
+	demand_file =  file(filename)
+	demand_data = demand_file.readlines()
+	demand_file.close()
+	
+	# Run simulation
+	l,o,l_plus,l_minus = sis1(s, S, demand_data, start_index)
+	
+
+	# Calculate averages
+	o_bar = sum(o) / float(len(o)-1)
+	u_bar = len([1 for value in o if value != 0]) / float(len(o)-1)
+	l_plus_bar = sum(l_plus) / float(len(l_plus))
+	l_minus_bar = sum(l_minus) / float(len(l_minus))
+
+	# Print out the averages to check
+	print "o_bar", o_bar
+	print "u_bar", u_bar
+	print "l_plus_bar", l_plus_bar
+	print "l_minus_bar", l_minus_bar
+
+	# Calculate costs
+	item_cost = c_item * o_bar
+	setup_cost = c_setup * u_bar
+	holding_cost = c_hold * l_plus_bar
+	shortage_cost = c_short * l_minus_bar
+
+	print
+
+	# Output results
+	print "OUTPUT %.2f" % setup_cost
+	print "OUTPUT %.2f" % shortage_cost
+	print "OUTPUT %.2f" % holding_cost
+	print "OUTPUT %.2f" % (setup_cost + holding_cost + shortage_cost)
+
+
+	#plt.plot(l, 'ko')
+	#plt.show()
+
+
+
+if __name__ == '__main__':
+	main()
